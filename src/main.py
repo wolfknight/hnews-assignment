@@ -28,9 +28,9 @@ def create_post():
         return {"error": "not JSON"}
     post_text = request.json.get('post_data')
     if post_text:
-        new_id = db.DataBase(TEST_DB_PATH).create_post(post_text)
+        post_dict = db.DataBase(TEST_DB_PATH).create_post(post_text)
         response.status = http.HTTPStatus.CREATED
-        return {"id": new_id}
+        return post_dict
     else:
         return {"error": "not sure yet"}
 

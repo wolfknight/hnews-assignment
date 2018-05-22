@@ -66,8 +66,7 @@ class TestClass(object):
         r = requests.post(self.POSTS_URL, json={"post_data": post_text})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.CREATED)
-        post_id = r.json().get("id")
-        return post_id
+        return r.json()
 
     def assert_headers(self, r):
         assert (r.headers.get('Content-Type') == 'application/json')
@@ -84,12 +83,14 @@ class TestClass(object):
 
     def test_create_post(self):
         post_text = "sampleText"
-        post_id = self.create_post(post_text)
-        assert (post_id == 1)
+        post = self.create_post(post_text)
+        assert (post.get("id") == 1)
+        assert (post.get("post_data") == post_text)
+        assert (post.get("score") == 0)
 
     def test_get_post(self):
         post_text = "sampleText"
-        post_id = self.create_post(post_text)
+        post_id = self.create_post(post_text).get("id")
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
@@ -102,7 +103,7 @@ class TestClass(object):
 
     def test_edit_post(self):
         post_text = "sampleText"
-        post_id = self.create_post(post_text)
+        post_id = self.create_post(post_text).get("id")
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)

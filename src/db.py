@@ -8,6 +8,12 @@ class DataBase(object):
         self.table_name = "posts"
         self.DEFAULT_SCORE = 0
 
+    @staticmethod
+    def _get_post_dict(post_values):
+        ret_dict_keys = ("id", "post_data", "score")
+        post_dict = dict(zip(ret_dict_keys, post_values))
+        return post_dict
+
     def get_db_connection(self):
         return sqlite3.connect(self.db_location)
 
@@ -21,7 +27,7 @@ class DataBase(object):
                 db_connection.commit()
             finally:
                 db_cursor.close()
-        return new_id
+        return self._get_post_dict((new_id, post_data, self.DEFAULT_SCORE))
 
     def _get_posts_list(self):
         with self.get_db_connection() as db_connection:
@@ -35,7 +41,7 @@ class DataBase(object):
 
     def list_posts(self):
         posts_list = self._get_posts_list()
-        return [{"id": post_tuple[0], "data": post_tuple[1], "score": post_tuple[2]} for post_tuple in posts_list]
+        return [self._get_post_dict(post_tuple) for post_tuple in posts_list]
 
     def get_post(self, post_id):
         with self.get_db_connection() as db_connection:
@@ -47,8 +53,7 @@ class DataBase(object):
                 db_cursor.close()
         if len(result) is 1:
             post_values = result[0]
-            ret_dict_keys = ("id", "post_data", "score")
-            return dict(zip(ret_dict_keys, post_values))
+            return self._get_post_dict(post_values)
         return None
 
     def edit_post(self, post_id, post_data):
