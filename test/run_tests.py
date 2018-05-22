@@ -100,6 +100,27 @@ class TestClass(object):
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.NOT_FOUND)
 
+    def test_edit_post(self):
+        post_text = "sampleText"
+        post_id = self.create_post(post_text)
+        r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+
+        new_post_text = "Images And Words"
+        r = requests.post("{}/{}".format(self.POSTS_URL, post_id), json={"post_data": new_post_text})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json() == {'id': post_id, 'post_data': new_post_text, 'score': 0})
+
+    def test_edit_non_existing_post(self):
+        post_text = "sampleText"
+        non_exist_id = 666
+        r = requests.post("{}/{}".format(self.POSTS_URL, non_exist_id), json={"post_data": post_text})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.NOT_FOUND)
+
 
 if __name__ == "__main__":
     pytest.main([TEST_FILE_PATH, '-s'])

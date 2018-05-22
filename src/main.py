@@ -41,12 +41,29 @@ def list_posts():
     return {"posts": posts_list}
 
 
-@application.route('{posts_path}/<id:int>'.format(posts_path=POSTS_PATH), method='GET')
-def get_post(id):
-    post_data = db.DataBase(TEST_DB_PATH).get_post(id)
+@application.route('{posts_path}/<post_id:int>'.format(posts_path=POSTS_PATH), method='POST')
+def edit_post(post_id):
+    print(request.headers)
+    if not request.content_type == 'application/json':
+        return {"error": "not JSON"}
+    post_text = request.json.get('post_data')
+    if not post_text:
+        response.status = http.HTTPStatus.BAD_REQUEST
+        return {"error": "No post_data was provided"}
+    is_edited = db.DataBase(TEST_DB_PATH).edit_post(post_id, post_text)
+    if is_edited:
+        return get_post(post_id)
+    else:
+        response.status = http.HTTPStatus.NOT_FOUND
+        return {"error": "ID {} not found".format(post_id)}
+
+
+@application.route('{posts_path}/<post_id:int>'.format(posts_path=POSTS_PATH), method='GET')
+def get_post(post_id):
+    post_data = db.DataBase(TEST_DB_PATH).get_post(post_id)
     if post_data is None:
         response.status = http.HTTPStatus.NOT_FOUND
-        return {"error": "ID {} not found".format(id)}
+        return {"error": "ID {} not found".format(post_id)}
     return post_data
 
 

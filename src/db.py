@@ -51,6 +51,17 @@ class DataBase(object):
             return dict(zip(ret_dict_keys, post_values))
         return None
 
+    def edit_post(self, post_id, post_data):
+        with self.get_db_connection() as db_connection:
+            db_cursor = db_connection.cursor()
+            try:
+                db_cursor.execute("UPDATE {table_name} SET post_data = ? WHERE id LIKE ?".format(table_name=self.table_name), (post_data, post_id))
+                db_cursor.fetchone()
+            finally:
+                db_cursor.close()
+        post = self.get_post(post_id)
+        return post is not None and post["post_data"] == post_data
+
 
 if __name__ == '__main__':
     import os
@@ -69,9 +80,9 @@ if __name__ == '__main__':
             db_conn.commit()
 
     print(db.list_posts())
-    db.create_post("bla bla bla")
+    post_id = db.create_post("bla bla bla")
     print(db.list_posts())
-    db.create_post("bla bla bla")
+    print(db.edit_post(666, "yada yada yada"))
     print(db.list_posts())
-    db.create_post("bla bla bla")
-    print(db.list_posts())
+    # db.create_post("bla bla bla")
+    # print(db.list_posts())
