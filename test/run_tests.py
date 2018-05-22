@@ -26,6 +26,8 @@ def create_table(data_base, table_name):
 
 class TestClass(object):
     test_server = None
+    SERVER_URL = "http://localhost:8080"
+    POSTS_URL = "{server}/posts".format(server=SERVER_URL)
 
     @classmethod
     def remove_test_db(cls):
@@ -60,21 +62,43 @@ class TestClass(object):
     def teardown_method(self, method):
         self.remove_test_db()
 
+    def create_post(self, post_text):
+        r = requests.post(self.POSTS_URL, json={"post_data": post_text})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.CREATED)
+        post_id = r.json().get("id")
+        return post_id
+
+    def assert_headers(self, r):
+        assert (r.headers.get('Content-Type') == 'application/json')
+
     def test_is_db_exist(self):
         db_path = TestClass.get_test_db_path()
         assert os.path.exists(db_path)
 
     def test_list_posts_empty(self):
-        r = requests.get("http://localhost:8080/posts")
-        assert (r.headers.get('Content-Type') == 'application/json')
-        assert (r.json() == {'posts': []})
+        r = requests.get(self.POSTS_URL)
+        self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json() == {'posts': []})
 
     def test_create_post(self):
-        r = requests.post("http://localhost:8080/posts", json={"text": "sampleText"})
-        assert (r.headers.get('Content-Type') == 'application/json')
-        assert (r.json().get("id") == 1)
+        post_text = "sampleText"
+        post_id = self.create_post(post_text)
+        assert (post_id == 1)
+
+    def test_get_post(self):
+        post_text = "sampleText"
+        post_id = self.create_post(post_text)
+        r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
+        self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+
+    def test_negative_get_post(self):
+        r = requests.get("{}/{}".format(self.POSTS_URL, 6))
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.NOT_FOUND)
 
 
 if __name__ == "__main__":

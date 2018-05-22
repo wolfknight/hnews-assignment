@@ -37,6 +37,20 @@ class DataBase(object):
         posts_list = self._get_posts_list()
         return [{"id": post_tuple[0], "data": post_tuple[1], "score": post_tuple[2]} for post_tuple in posts_list]
 
+    def get_post(self, post_id):
+        with self.get_db_connection() as db_connection:
+            db_cursor = db_connection.cursor()
+            try:
+                db_cursor.execute("SELECT id, post_data, score FROM {table_name} WHERE id LIKE ?".format(table_name=self.table_name), (post_id,))
+                result = db_cursor.fetchall()
+            finally:
+                db_cursor.close()
+        if len(result) is 1:
+            post_values = result[0]
+            ret_dict_keys = ("id", "post_data", "score")
+            return dict(zip(ret_dict_keys, post_values))
+        return None
+
 
 if __name__ == '__main__':
     import os
@@ -45,6 +59,15 @@ if __name__ == '__main__':
 
     TEST_DB_PATH = os.path.join(SRC_ROOT_PATH, "test.db")
     db = DataBase(TEST_DB_PATH)
+    with db.get_db_connection() as db_conn:
+        try:
+            db_conn.execute(
+                "CREATE TABLE %s (id INTEGER PRIMARY KEY, post_data TEXT NOT NULL, score INTEGER NOT NULL)" % "posts")
+        except sqlite3.OperationalError as e:
+            pass
+        else:
+            db_conn.commit()
+
     print(db.list_posts())
     db.create_post("bla bla bla")
     print(db.list_posts())
