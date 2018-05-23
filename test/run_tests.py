@@ -122,6 +122,22 @@ class TestClass(object):
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.NOT_FOUND)
 
+    def test_voting(self):
+        post_text = "sampleText"
+        post_id = self.create_post(post_text).get("id")
+        r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
+        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+
+        r = requests.post("{}/{}/upvote".format(self.POSTS_URL, post_id), json={})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 1})
+
+        r = requests.post("{}/{}/downvote".format(self.POSTS_URL, post_id), json={})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+
 
 if __name__ == "__main__":
     pytest.main([TEST_FILE_PATH, '-s'])

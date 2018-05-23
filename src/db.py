@@ -56,7 +56,7 @@ class DataBase(object):
             return self._get_post_dict(post_values)
         return None
 
-    def edit_post(self, post_id, post_data):
+    def edit_post_data(self, post_id, post_data):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
@@ -66,6 +66,29 @@ class DataBase(object):
                 db_cursor.close()
         post = self.get_post(post_id)
         return post is not None and post["post_data"] == post_data
+
+    def _edit_post_score(self, post_id, is_up):
+        post = self.get_post(post_id)
+        if post is None:
+            return False
+        post_score = post.get("score", self.DEFAULT_SCORE)
+        new_post_score = post_score + 1 if is_up else post_score - 1
+        with self.get_db_connection() as db_connection:
+            db_cursor = db_connection.cursor()
+            try:
+                db_cursor.execute("UPDATE {table_name} SET score = ? WHERE id LIKE ?".format(table_name=self.table_name),
+                                  (new_post_score, post_id))
+                db_cursor.fetchone()
+            finally:
+                db_cursor.close()
+        new_post = self.get_post(post_id)
+        return new_post is not None and new_post.get("score") == new_post_score
+
+    def vote_up(self, post_id):
+        return self._edit_post_score(post_id, True)
+
+    def vote_down(self, post_id):
+        return self._edit_post_score(post_id, False)
 
 
 if __name__ == '__main__':
@@ -85,9 +108,12 @@ if __name__ == '__main__':
             db_conn.commit()
 
     print(db.list_posts())
-    post_id = db.create_post("bla bla bla")
+    post_id = db.create_post("bla bla bla").get("id")
     print(db.list_posts())
-    print(db.edit_post(666, "yada yada yada"))
+    print(db.edit_post_data(post_id, "yada yada yada"))
     print(db.list_posts())
-    # db.create_post("bla bla bla")
-    # print(db.list_posts())
+    print(db.vote_up(post_id))
+    print(db.list_posts())
+    print(db.vote_down(post_id))
+    print(db.vote_down(post_id))
+    print(db.list_posts())

@@ -50,8 +50,24 @@ def edit_post(post_id):
     if not post_text:
         response.status = http.HTTPStatus.BAD_REQUEST
         return {"error": "No post_data was provided"}
-    is_edited = db.DataBase(TEST_DB_PATH).edit_post(post_id, post_text)
+    is_edited = db.DataBase(TEST_DB_PATH).edit_post_data(post_id, post_text)
     if is_edited:
+        return get_post(post_id)
+    else:
+        response.status = http.HTTPStatus.NOT_FOUND
+        return {"error": "ID {} not found".format(post_id)}
+
+
+@application.route('{posts_path}/<post_id:int>/<action>'.format(posts_path=POSTS_PATH), method='POST')
+def vote_post(post_id, action):
+    actions_list = ['downvote', 'upvote']
+    if action not in actions_list:
+        response.status = http.HTTPStatus.BAD_REQUEST
+        return {"error": "Only the following actions are allowed {}".format(actions_list)}
+    if not request.content_type == 'application/json':
+        return {"error": "not JSON"}
+    is_vote_registered = db.DataBase(TEST_DB_PATH).vote_up(post_id) if action == "upvote" else db.DataBase(TEST_DB_PATH).vote_down(post_id)
+    if is_vote_registered:
         return get_post(post_id)
     else:
         response.status = http.HTTPStatus.NOT_FOUND
