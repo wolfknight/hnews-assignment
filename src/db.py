@@ -5,6 +5,7 @@ class DataBase(object):
     POSTS_TABLE_NAME = "posts"
     DEFAULT_VOTE = 0
     VOTES_FIELD_NAME = "votes"
+    SCORE_FIELD_NAME = "score"
     POST_DATA_FIELD_NAME = "post_data"
     ID_FIELD_NAME = "id"
     DATE_TIME_FIELD_NAME = 'date_time'
@@ -14,9 +15,16 @@ class DataBase(object):
         self.db_location = db_location
 
     @staticmethod
+    def _calculate_score(votes, item_hour_age, gravity=1.8):
+        _votes = (votes - 1) if votes > 0 else votes
+        return _votes / pow((item_hour_age + 2), gravity)
+
+    @staticmethod
     def _get_post_dict(post_values):
-        ret_dict_keys = (DataBase.ID_FIELD_NAME, DataBase.DATE_TIME_FIELD_NAME, DataBase.POST_DATA_FIELD_NAME, DataBase.VOTES_FIELD_NAME)
+        ret_dict_keys = (DataBase.ID_FIELD_NAME, DataBase.DATE_TIME_FIELD_NAME, DataBase.POST_DATA_FIELD_NAME, DataBase.VOTES_FIELD_NAME, DataBase.SCORE_FIELD_NAME)
         post_dict = dict(zip(ret_dict_keys, post_values))
+        post_score = DataBase._calculate_score(post_dict.get(DataBase.VOTES_FIELD_NAME), post_dict.get(DataBase.SCORE_FIELD_NAME))
+        post_dict[DataBase.SCORE_FIELD_NAME] = post_score
         return post_dict
 
     def get_db_connection(self):
@@ -48,9 +56,12 @@ class DataBase(object):
         return result
 
     def _select_post_query(self):
-        return "SELECT {id_field}, {date_time}, {post_data_field}, {vote_field} FROM {table_name}".format(
+        hours_past_query = r"(STRFTIME('%s',DATETIME('now')) - STRFTIME('%s',{date_time})) / 3600"\
+            .format(date_time=self.DATE_TIME_FIELD_NAME)
+
+        return "SELECT {id_field}, {date_time}, {post_data_field}, {vote_field}, {hours_past} FROM {table_name}".format(
             table_name=self.POSTS_TABLE_NAME, id_field=self.ID_FIELD_NAME, date_time=self.DATE_TIME_FIELD_NAME,
-            post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME)
+            post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME, hours_past=hours_past_query)
 
     def list_posts(self):
         posts_list = self._get_posts_list()
@@ -104,7 +115,6 @@ class DataBase(object):
 
     def vote_up(self, post_id):
         return self._edit_post_votes(post_id, True)
-
     def vote_down(self, post_id):
         return self._edit_post_votes(post_id, False)
 
@@ -132,7 +142,6 @@ if __name__ == '__main__':
     print(db.list_posts())
     print(db.edit_post_data(post_id, "yada yada yada"))
     print(db.list_posts())
-    print(db.vote_up(post_id))
     print(db.list_posts())
     print(db.vote_down(post_id))
     print(db.vote_down(post_id))

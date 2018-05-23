@@ -19,6 +19,7 @@ TEST_DB_NAME = "test.db"
 ID_FIELD_NAME = db.DataBase.ID_FIELD_NAME
 POST_DATA_FIELD_NAME = db.DataBase.POST_DATA_FIELD_NAME
 VOTES_FIELD_NAME = db.DataBase.VOTES_FIELD_NAME
+SCORE_FIELD_NAME = db.DataBase.SCORE_FIELD_NAME
 DATE_TIME_FIELD = db.DataBase.DATE_TIME_FIELD_NAME
 POST_DATA_PAYLOAD_KEY = main.POST_DATA_PAYLOAD_KEY
 
@@ -84,6 +85,7 @@ class TestClass(object):
         assert (response_dict.get(POST_DATA_FIELD_NAME) == post_text)
         assert (response_dict.get(VOTES_FIELD_NAME) == votes)
         assert (response_dict.get(DATE_TIME_FIELD) is not None)
+        assert (response_dict.get(SCORE_FIELD_NAME) is not None)
 
     def test_is_db_exist(self):
         db_path = TestClass.get_test_db_path()
