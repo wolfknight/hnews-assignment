@@ -43,7 +43,11 @@ def create_post():
 @application.route(POSTS_PATH, method='GET')
 def list_posts():
     posts_list = db.DataBase(TEST_DB_PATH).list_posts()
-    return {"posts": posts_list}
+    ret_list = posts_list
+    if request.query.sort == "top":
+        sorted_list = sorted(posts_list, key=lambda k: k[db.DataBase.SCORE_FIELD_NAME], reverse=True)
+        ret_list = sorted_list
+    return {"posts": ret_list}
 
 
 @application.route('{posts_path}/<post_id:int>'.format(posts_path=POSTS_PATH), method='POST')

@@ -80,12 +80,12 @@ class TestClass(object):
     def assert_headers(self, r):
         assert (r.headers.get('Content-Type') == 'application/json')
 
-    def _assert_post_response(self, post_id, post_text, votes, response_dict):
-        assert (response_dict.get(ID_FIELD_NAME) == post_id)
-        assert (response_dict.get(POST_DATA_FIELD_NAME) == post_text)
-        assert (response_dict.get(VOTES_FIELD_NAME) == votes)
-        assert (response_dict.get(DATE_TIME_FIELD) is not None)
-        assert (response_dict.get(SCORE_FIELD_NAME) is not None)
+    def _assert_post_dict(self, post_id, post_text, votes, post_dict):
+        assert (post_dict.get(ID_FIELD_NAME) == post_id)
+        assert (post_dict.get(POST_DATA_FIELD_NAME) == post_text)
+        assert (post_dict.get(VOTES_FIELD_NAME) == votes)
+        assert (post_dict.get(DATE_TIME_FIELD) is not None)
+        assert (post_dict.get(SCORE_FIELD_NAME) is not None)
 
     def test_is_db_exist(self):
         db_path = TestClass.get_test_db_path()
@@ -97,10 +97,30 @@ class TestClass(object):
         assert (r.status_code == http.HTTPStatus.OK)
         assert (r.json() == {'posts': []})
 
+    def test_list_posts(self):
+        sample_text = "The Trooper"
+        post = self.create_post(sample_text)
+
+        r = requests.get(self.POSTS_URL)
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json().get('posts')[0] == post)
+
+    def test_list_posts_sort_top(self):
+        self.create_post("The Trooper")
+        top_post = self.create_post("Number of Beast")
+        for i in range(10):
+            self._vote_up(top_post.get(ID_FIELD_NAME))
+
+        r = requests.get(self.POSTS_URL, params={"sort": "top"})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        assert (r.json().get('posts')[0].get(POST_DATA_FIELD_NAME) == top_post.get(POST_DATA_FIELD_NAME))
+
     def test_create_post(self):
         post_text = "sampleText"
         post = self.create_post(post_text)
-        self._assert_post_response(1, post_text, 0, post)
+        self._assert_post_dict(1, post_text, 0, post)
 
     def test_get_post(self):
         post_text = "sampleText"
@@ -108,7 +128,7 @@ class TestClass(object):
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        self._assert_post_response(post_id, post_text, 0, r.json())
+        self._assert_post_dict(post_id, post_text, 0, r.json())
 
     def test_negative_get_post(self):
         r = requests.get("{}/{}".format(self.POSTS_URL, 6))
@@ -121,13 +141,13 @@ class TestClass(object):
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        self._assert_post_response(post_id, post_text, 0, r.json())
+        self._assert_post_dict(post_id, post_text, 0, r.json())
 
         new_post_text = "Images And Words"
         r = requests.post("{}/{}".format(self.POSTS_URL, post_id), json={POST_DATA_PAYLOAD_KEY: new_post_text})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        self._assert_post_response(post_id, new_post_text, 0, r.json())
+        self._assert_post_dict(post_id, new_post_text, 0, r.json())
 
     def test_edit_non_existing_post(self):
         post_text = "sampleText"
@@ -140,17 +160,21 @@ class TestClass(object):
         post_text = "sampleText"
         post_id = self.create_post(post_text).get(ID_FIELD_NAME)
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
-        self._assert_post_response(post_id, post_text, 0, r.json())
+        self._assert_post_dict(post_id, post_text, 0, r.json())
 
-        r = requests.post("{}/{}/upvote".format(self.POSTS_URL, post_id), json={})
-        self.assert_headers(r)
-        assert (r.status_code == http.HTTPStatus.OK)
-        self._assert_post_response(post_id, post_text, 1, r.json())
+        r = self._vote_up(post_id)
+        self._assert_post_dict(post_id, post_text, 1, r.json())
 
         r = requests.post("{}/{}/downvote".format(self.POSTS_URL, post_id), json={})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        self._assert_post_response(post_id, post_text, 0, r.json())
+        self._assert_post_dict(post_id, post_text, 0, r.json())
+
+    def _vote_up(self, post_id):
+        r = requests.post("{}/{}/upvote".format(self.POSTS_URL, post_id), json={})
+        self.assert_headers(r)
+        assert (r.status_code == http.HTTPStatus.OK)
+        return r
 
 
 if __name__ == "__main__":
