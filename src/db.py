@@ -4,7 +4,7 @@ import sqlite3
 class DataBase(object):
     POSTS_TABLE_NAME = "posts"
     DEFAULT_VOTE = 0
-    VOTES_FIELD_NAME = "score"
+    VOTES_FIELD_NAME = "votes"
     POST_DATA_FIELD_NAME = "post_data"
     ID_FIELD_NAME = "id"
 
@@ -80,30 +80,30 @@ class DataBase(object):
         post = self.get_post(post_id)
         return post is not None and post[self.POST_DATA_FIELD_NAME] == post_data
 
-    def _edit_post_score(self, post_id, is_up):
+    def _edit_post_votes(self, post_id, is_up):
         post = self.get_post(post_id)
         if post is None:
             return False
-        post_score = post.get(self.VOTES_FIELD_NAME, self.DEFAULT_VOTE)
-        new_post_score = post_score + 1 if is_up else post_score - 1
+        post_votes = post.get(self.VOTES_FIELD_NAME, self.DEFAULT_VOTE)
+        new_post_votes = post_votes + 1 if is_up else post_votes - 1
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
                 db_cursor.execute(
                     "UPDATE {table_name} SET {vote_field} = ? WHERE {id_field} LIKE ?".format(
                         id_field=self.ID_FIELD_NAME, table_name=self.POSTS_TABLE_NAME, vote_field=self.VOTES_FIELD_NAME),
-                    (new_post_score, post_id))
+                    (new_post_votes, post_id))
                 db_cursor.fetchone()
             finally:
                 db_cursor.close()
         new_post = self.get_post(post_id)
-        return new_post is not None and new_post.get(self.VOTES_FIELD_NAME) == new_post_score
+        return new_post is not None and new_post.get(self.VOTES_FIELD_NAME) == new_post_votes
 
     def vote_up(self, post_id):
-        return self._edit_post_score(post_id, True)
+        return self._edit_post_votes(post_id, True)
 
     def vote_down(self, post_id):
-        return self._edit_post_score(post_id, False)
+        return self._edit_post_votes(post_id, False)
 
 
 if __name__ == '__main__':
@@ -116,7 +116,7 @@ if __name__ == '__main__':
     with db.get_db_connection() as db_conn:
         try:
             db_conn.execute(
-                "CREATE TABLE {table_name} ({id_field} INTEGER PRIMARY KEY, {post_post_data_field} TEXT NOT NULL, {vote_field} INTEGER NOT NULL)"
+                "CREATE TABLE {table_name} ({id_field} INTEGER PRIMARY KEY, {post_data_field} TEXT NOT NULL, {vote_field} INTEGER NOT NULL)"
                     .format(table_name=DataBase.POSTS_TABLE_NAME, id_field=DataBase.ID_FIELD_NAME,
                             post_data_field=DataBase.POST_DATA_FIELD_NAME, vote_field=DataBase.VOTES_FIELD_NAME))
         except sqlite3.OperationalError as e:
