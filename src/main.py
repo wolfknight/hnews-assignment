@@ -6,6 +6,8 @@ from bottle import *
 import db
 from server import MyWSGIRefServer
 
+POST_DATA_PAYLOAD_KEY = 'post_data'
+
 POSTS_PATH = '/posts'
 
 CWD_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -26,7 +28,7 @@ def create_post():
     print(request.headers)
     if not request.content_type == 'application/json':
         return {"error": "not JSON"}
-    post_text = request.json.get('post_data')
+    post_text = request.json.get(POST_DATA_PAYLOAD_KEY)
     if post_text:
         post_dict = db.DataBase(TEST_DB_PATH).create_post(post_text)
         response.status = http.HTTPStatus.CREATED
@@ -46,10 +48,10 @@ def edit_post(post_id):
     print(request.headers)
     if not request.content_type == 'application/json':
         return {"error": "not JSON"}
-    post_text = request.json.get('post_data')
+    post_text = request.json.get(POST_DATA_PAYLOAD_KEY)
     if not post_text:
         response.status = http.HTTPStatus.BAD_REQUEST
-        return {"error": "No post_data was provided"}
+        return {"error": "No text was provided for {post_data}".format(post_data=POST_DATA_PAYLOAD_KEY)}
     is_edited = db.DataBase(TEST_DB_PATH).edit_post_data(post_id, post_text)
     if is_edited:
         return get_post(post_id)

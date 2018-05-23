@@ -6,6 +6,7 @@ from time import sleep
 import requests
 import pytest
 
+
 TEST_FILE_PATH = os.path.realpath(__file__)
 CWD_PATH = os.path.dirname(TEST_FILE_PATH)
 ROOT_PATH = os.path.normpath(os.path.join(CWD_PATH, os.path.pardir))
@@ -15,12 +16,18 @@ import db
 import main
 
 TEST_DB_NAME = "test.db"
+ID_FIELD_NAME = db.DataBase.ID_FIELD_NAME
+POST_DATA_FIELD_NAME = db.DataBase.POST_DATA_FIELD_NAME
+VOTES_FIELD_NAME = db.DataBase.VOTES_FIELD_NAME
+POST_DATA_PAYLOAD_KEY = main.POST_DATA_PAYLOAD_KEY
 
 
 def create_table(data_base, table_name):
     with data_base.get_db_connection() as db_conn:
         db_conn.execute(
-            "CREATE TABLE %s (id INTEGER PRIMARY KEY, post_data TEXT NOT NULL, score INTEGER NOT NULL)" % table_name)
+            "CREATE TABLE {table_name} ({id_field} INTEGER PRIMARY KEY, {post_data_field} TEXT NOT NULL, {vote_field} INTEGER NOT NULL)"
+                .format(table_name=table_name, vote_field=VOTES_FIELD_NAME,
+                        id_field=db.DataBase.ID_FIELD_NAME, post_data_field=db.DataBase.POST_DATA_FIELD_NAME))
         db_conn.commit()
 
 
@@ -63,7 +70,7 @@ class TestClass(object):
         self.remove_test_db()
 
     def create_post(self, post_text):
-        r = requests.post(self.POSTS_URL, json={"post_data": post_text})
+        r = requests.post(self.POSTS_URL, json={POST_DATA_PAYLOAD_KEY: post_text})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.CREATED)
         return r.json()
@@ -84,17 +91,17 @@ class TestClass(object):
     def test_create_post(self):
         post_text = "sampleText"
         post = self.create_post(post_text)
-        assert (post.get("id") == 1)
-        assert (post.get("post_data") == post_text)
-        assert (post.get("score") == 0)
+        assert (post.get(ID_FIELD_NAME) == 1)
+        assert (post.get(POST_DATA_FIELD_NAME) == post_text)
+        assert (post.get(VOTES_FIELD_NAME) == 0)
 
     def test_get_post(self):
         post_text = "sampleText"
-        post_id = self.create_post(post_text).get("id")
+        post_id = self.create_post(post_text).get(ID_FIELD_NAME)
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+        assert (r.json() == {ID_FIELD_NAME: post_id, POST_DATA_FIELD_NAME: post_text, VOTES_FIELD_NAME: 0})
 
     def test_negative_get_post(self):
         r = requests.get("{}/{}".format(self.POSTS_URL, 6))
@@ -103,40 +110,40 @@ class TestClass(object):
 
     def test_edit_post(self):
         post_text = "sampleText"
-        post_id = self.create_post(post_text).get("id")
+        post_id = self.create_post(post_text).get(ID_FIELD_NAME)
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+        assert (r.json() == {ID_FIELD_NAME: post_id, POST_DATA_FIELD_NAME: post_text, VOTES_FIELD_NAME: 0})
 
         new_post_text = "Images And Words"
-        r = requests.post("{}/{}".format(self.POSTS_URL, post_id), json={"post_data": new_post_text})
+        r = requests.post("{}/{}".format(self.POSTS_URL, post_id), json={POST_DATA_PAYLOAD_KEY: new_post_text})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        assert (r.json() == {'id': post_id, 'post_data': new_post_text, 'score': 0})
+        assert (r.json() == {ID_FIELD_NAME: post_id, POST_DATA_FIELD_NAME: new_post_text, VOTES_FIELD_NAME: 0})
 
     def test_edit_non_existing_post(self):
         post_text = "sampleText"
         non_exist_id = 666
-        r = requests.post("{}/{}".format(self.POSTS_URL, non_exist_id), json={"post_data": post_text})
+        r = requests.post("{}/{}".format(self.POSTS_URL, non_exist_id), json={POST_DATA_PAYLOAD_KEY: post_text})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.NOT_FOUND)
 
     def test_voting(self):
         post_text = "sampleText"
-        post_id = self.create_post(post_text).get("id")
+        post_id = self.create_post(post_text).get(ID_FIELD_NAME)
         r = requests.get("{}/{}".format(self.POSTS_URL, post_id))
-        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+        assert (r.json() == {ID_FIELD_NAME: post_id, POST_DATA_FIELD_NAME: post_text, VOTES_FIELD_NAME: 0})
 
         r = requests.post("{}/{}/upvote".format(self.POSTS_URL, post_id), json={})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 1})
+        assert (r.json() == {ID_FIELD_NAME: post_id, POST_DATA_FIELD_NAME: post_text, VOTES_FIELD_NAME: 1})
 
         r = requests.post("{}/{}/downvote".format(self.POSTS_URL, post_id), json={})
         self.assert_headers(r)
         assert (r.status_code == http.HTTPStatus.OK)
-        assert (r.json() == {'id': post_id, 'post_data': post_text, 'score': 0})
+        assert (r.json() == {ID_FIELD_NAME: post_id, POST_DATA_FIELD_NAME: post_text, VOTES_FIELD_NAME: 0})
 
 
 if __name__ == "__main__":
