@@ -7,6 +7,7 @@ class DataBase(object):
     VOTES_FIELD_NAME = "votes"
     POST_DATA_FIELD_NAME = "post_data"
     ID_FIELD_NAME = "id"
+    DATE_TIME_FIELD_NAME = 'date_time'
 
     def __init__(self, db_location) -> None:
         super().__init__()
@@ -14,7 +15,7 @@ class DataBase(object):
 
     @staticmethod
     def _get_post_dict(post_values):
-        ret_dict_keys = (DataBase.ID_FIELD_NAME, DataBase.POST_DATA_FIELD_NAME, DataBase.VOTES_FIELD_NAME)
+        ret_dict_keys = (DataBase.ID_FIELD_NAME, DataBase.DATE_TIME_FIELD_NAME, DataBase.POST_DATA_FIELD_NAME, DataBase.VOTES_FIELD_NAME)
         post_dict = dict(zip(ret_dict_keys, post_values))
         return post_dict
 
@@ -25,27 +26,31 @@ class DataBase(object):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
-                db_cursor.execute("INSERT INTO {table_name} ({post_data_field},{vote_field}) VALUES (?,?)"
+                db_cursor.execute("INSERT INTO {table_name} ({date_time}, {post_data_field},{vote_field}) VALUES ((CURRENT_TIMESTAMP),?,?)"
                                   .format(table_name=self.POSTS_TABLE_NAME, vote_field=self.VOTES_FIELD_NAME,
-                                          post_data_field=self.POST_DATA_FIELD_NAME), (post_data, self.DEFAULT_VOTE))
+                                          post_data_field=self.POST_DATA_FIELD_NAME, date_time=self.DATE_TIME_FIELD_NAME),
+                                  (post_data, self.DEFAULT_VOTE))
                 new_id = db_cursor.lastrowid
                 db_connection.commit()
             finally:
                 db_cursor.close()
-        return self._get_post_dict((new_id, post_data, self.DEFAULT_VOTE))
+        return self.get_post(new_id)
 
     def _get_posts_list(self):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
                 db_cursor.execute(
-                    "SELECT {id_field}, {post_data_field}, {vote_field} FROM {table_name}".format(
-                        table_name=self.POSTS_TABLE_NAME, id_field=self.ID_FIELD_NAME,
-                        post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME))
+                    self._select_post_query())
                 result = db_cursor.fetchall()
             finally:
                 db_cursor.close()
         return result
+
+    def _select_post_query(self):
+        return "SELECT {id_field}, {date_time}, {post_data_field}, {vote_field} FROM {table_name}".format(
+            table_name=self.POSTS_TABLE_NAME, id_field=self.ID_FIELD_NAME, date_time=self.DATE_TIME_FIELD_NAME,
+            post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME)
 
     def list_posts(self):
         posts_list = self._get_posts_list()
@@ -55,10 +60,8 @@ class DataBase(object):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
-                db_cursor.execute("SELECT {id_field}, {post_data_field}, {vote_field} FROM {table_name} WHERE {id_field} LIKE ?"
-                                  .format(table_name=self.POSTS_TABLE_NAME, id_field=self.ID_FIELD_NAME,
-                                          post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME),
-                                  (post_id,))
+                db_cursor.execute("{select_post} WHERE {id_field} LIKE ?".format(
+                    select_post=self._select_post_query(), id_field=self.ID_FIELD_NAME,), (post_id,))
                 result = db_cursor.fetchall()
             finally:
                 db_cursor.close()
@@ -116,8 +119,8 @@ if __name__ == '__main__':
     with db.get_db_connection() as db_conn:
         try:
             db_conn.execute(
-                "CREATE TABLE {table_name} ({id_field} INTEGER PRIMARY KEY, {post_data_field} TEXT NOT NULL, {vote_field} INTEGER NOT NULL)"
-                    .format(table_name=DataBase.POSTS_TABLE_NAME, id_field=DataBase.ID_FIELD_NAME,
+                "CREATE TABLE {table_name} ({id_field} INTEGER PRIMARY KEY, {date_time} TEXT NOT NULL, {post_data_field} TEXT NOT NULL, {vote_field} INTEGER NOT NULL)"
+                    .format(table_name=DataBase.POSTS_TABLE_NAME, id_field=DataBase.ID_FIELD_NAME, date_time=DataBase.DATE_TIME_FIELD_NAME,
                             post_data_field=DataBase.POST_DATA_FIELD_NAME, vote_field=DataBase.VOTES_FIELD_NAME))
         except sqlite3.OperationalError as e:
             pass

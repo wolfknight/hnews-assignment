@@ -29,12 +29,15 @@ def create_post():
     if not request.content_type == 'application/json':
         return {"error": "not JSON"}
     post_text = request.json.get(POST_DATA_PAYLOAD_KEY)
-    if post_text:
-        post_dict = db.DataBase(TEST_DB_PATH).create_post(post_text)
+    if not post_text:
+        response.status = http.HTTPStatus.BAD_REQUEST
+        return {"error": "No post text was given under {}".format(POST_DATA_PAYLOAD_KEY)}
+    post_dict = db.DataBase(TEST_DB_PATH).create_post(post_text)
+    if post_dict:
         response.status = http.HTTPStatus.CREATED
         return post_dict
-    else:
-        return {"error": "not sure yet"}
+    response.status = http.HTTPStatus.INTERNAL_SERVER_ERROR
+    return {"error": "Failed to create post for {}".format(post_text)}
 
 
 @application.route(POSTS_PATH, method='GET')
