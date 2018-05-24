@@ -28,8 +28,8 @@ def create_table(data_base, table_name):
     with data_base.get_db_connection() as db_conn:
         db_conn.execute(
             "CREATE TABLE {table_name} ({id_field} INTEGER PRIMARY KEY, {date_time} TEXT NOT NULL, {post_data_field} TEXT NOT NULL, {vote_field} INTEGER NOT NULL)"
-                .format(table_name=table_name, vote_field=VOTES_FIELD_NAME, date_time=db.DataBase.DATE_TIME_FIELD_NAME,
-                        id_field=db.DataBase.ID_FIELD_NAME, post_data_field=db.DataBase.POST_DATA_FIELD_NAME))
+                .format(table_name=table_name, vote_field=VOTES_FIELD_NAME, date_time=DATE_TIME_FIELD,
+                        id_field=ID_FIELD_NAME, post_data_field=POST_DATA_FIELD_NAME))
         db_conn.commit()
 
 
