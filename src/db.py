@@ -1,4 +1,6 @@
+import datetime
 import sqlite3
+import psycopg2
 
 
 class DataBase(object):
@@ -10,9 +12,10 @@ class DataBase(object):
     ID_FIELD_NAME = "id"
     DATE_TIME_FIELD_NAME = 'date_time'
 
-    def __init__(self, db_location) -> None:
+    def __init__(self, value_char, equals_operator) -> None:
         super().__init__()
-        self.db_location = db_location
+        self.value_char = value_char
+        self.equals_operator = equals_operator
 
     @staticmethod
     def _calculate_score(votes, item_hour_age, gravity=1.8):
@@ -28,40 +31,46 @@ class DataBase(object):
         return post_dict
 
     def get_db_connection(self):
-        return sqlite3.connect(self.db_location)
+        raise NotImplementedError()
 
     def create_post(self, post_data):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
-                db_cursor.execute("INSERT INTO {table_name} ({date_time}, {post_data_field},{vote_field}) VALUES ((CURRENT_TIMESTAMP),?,?)"
-                                  .format(table_name=self.POSTS_TABLE_NAME, vote_field=self.VOTES_FIELD_NAME,
-                                          post_data_field=self.POST_DATA_FIELD_NAME, date_time=self.DATE_TIME_FIELD_NAME),
-                                  (post_data, self.DEFAULT_VOTE))
-                new_id = db_cursor.lastrowid
+                db_cursor.execute(
+                    "INSERT INTO {table_name} ({date_time}, {post_data_field}, {vote_field}) VALUES ((CURRENT_TIMESTAMP),{VAL},{VAL}) {retid}"
+                    .format(table_name=self.POSTS_TABLE_NAME, vote_field=self.VOTES_FIELD_NAME, post_data_field=self.POST_DATA_FIELD_NAME,
+                            date_time=self.DATE_TIME_FIELD_NAME, VAL=self.value_char, retid=self._returning_id_str()),
+                    (post_data, self.DEFAULT_VOTE))
+                new_id = self._get_last_row_id(db_cursor)
                 db_connection.commit()
             finally:
                 db_cursor.close()
         return self.get_post(new_id)
 
+    def _returning_id_str(self):
+        raise NotImplementedError
+
+    def _get_last_row_id(self, db_cursor):
+        raise NotImplementedError()
+
     def _get_posts_list(self):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
-                db_cursor.execute(
-                    self._select_post_query())
+                db_cursor.execute(self._select_post_query())
                 result = db_cursor.fetchall()
             finally:
                 db_cursor.close()
         return result
 
     def _select_post_query(self):
-        hours_past_query = r"(STRFTIME('%s',DATETIME('now')) - STRFTIME('%s',{date_time})) / 3600"\
-            .format(date_time=self.DATE_TIME_FIELD_NAME)
-
         return "SELECT {id_field}, {date_time}, {post_data_field}, {vote_field}, {hours_past} FROM {table_name}".format(
             table_name=self.POSTS_TABLE_NAME, id_field=self.ID_FIELD_NAME, date_time=self.DATE_TIME_FIELD_NAME,
-            post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME, hours_past=hours_past_query)
+            post_data_field=self.POST_DATA_FIELD_NAME, vote_field=self.VOTES_FIELD_NAME, hours_past=self._get_past_hours_query())
+
+    def _get_past_hours_query(self):
+        raise NotImplementedError
 
     def list_posts(self):
         posts_list = self._get_posts_list()
@@ -71,8 +80,9 @@ class DataBase(object):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
-                db_cursor.execute("{select_post} WHERE {id_field} LIKE ?".format(
-                    select_post=self._select_post_query(), id_field=self.ID_FIELD_NAME,), (post_id,))
+                db_cursor.execute("{select_post} WHERE {id_field} {equals} {val_char}".format(
+                    select_post=self._select_post_query(), id_field=self.ID_FIELD_NAME, val_char=self.value_char,
+                    equals=self.equals_operator), (post_id,))
                 result = db_cursor.fetchall()
             finally:
                 db_cursor.close()
@@ -85,10 +95,11 @@ class DataBase(object):
         with self.get_db_connection() as db_connection:
             db_cursor = db_connection.cursor()
             try:
-                db_cursor.execute("UPDATE {table_name} SET {post_data_field} = ? WHERE {id_field} LIKE ?".format(
+                db_cursor.execute(
+                    "UPDATE {table_name} SET {post_data_field} = {val_char} WHERE {id_field} {equals} {val_char}".format(
                     table_name=self.POSTS_TABLE_NAME, id_field=self.ID_FIELD_NAME,
-                    post_data_field=self.POST_DATA_FIELD_NAME), (post_data, post_id))
-                db_cursor.fetchone()
+                    post_data_field=self.POST_DATA_FIELD_NAME, val_char=self.value_char, equals=self.equals_operator), (post_data, post_id))
+                db_connection.commit()
             finally:
                 db_cursor.close()
         post = self.get_post(post_id)
@@ -104,10 +115,11 @@ class DataBase(object):
             db_cursor = db_connection.cursor()
             try:
                 db_cursor.execute(
-                    "UPDATE {table_name} SET {vote_field} = ? WHERE {id_field} LIKE ?".format(
-                        id_field=self.ID_FIELD_NAME, table_name=self.POSTS_TABLE_NAME, vote_field=self.VOTES_FIELD_NAME),
+                    "UPDATE {table_name} SET {vote_field} = {val_char} WHERE {id_field} {equals} {val_char}".format(
+                        id_field=self.ID_FIELD_NAME, table_name=self.POSTS_TABLE_NAME,
+                        vote_field=self.VOTES_FIELD_NAME, val_char=self.value_char, equals=self.equals_operator),
                     (new_post_votes, post_id))
-                db_cursor.fetchone()
+                db_connection.commit()
             finally:
                 db_cursor.close()
         new_post = self.get_post(post_id)
@@ -117,6 +129,51 @@ class DataBase(object):
         return self._edit_post_votes(post_id, True)
     def vote_down(self, post_id):
         return self._edit_post_votes(post_id, False)
+
+
+class SqliteDataBase(DataBase):
+
+    def __init__(self, db_location) -> None:
+        super().__init__("?", "LIKE")
+        self.db_location = db_location
+
+    def get_db_connection(self):
+        return sqlite3.connect(self.db_location)
+
+    def _get_last_row_id(self, db_cursor):
+        return db_cursor.lastrowid
+
+    def _returning_id_str(self):
+        return ""
+
+    def _get_past_hours_query(self):
+        return r"(STRFTIME('%s',DATETIME('now')) - STRFTIME('%s',{date_time})) / 3600".format(
+            date_time=self.DATE_TIME_FIELD_NAME)
+
+
+class PostgreSqlDataBase(DataBase):
+
+    def __init__(self, host, db_name, user="postgres", password="mysecretpassword"):
+        super().__init__("%s", "=")
+        self.host = "'%s'" % host
+        self.db_name = "'%s'" % db_name
+        self.user = "'%s'" % user
+        self.password = "'%s'" % password
+
+    def get_db_connection(self):
+        return psycopg2.connect(
+            "dbname={dbname} user={user} host={host} password={password}".format(dbname=self.db_name, user=self.user,
+                                                                                 host=self.host, password=self.password))
+
+    def _get_last_row_id(self, db_cursor):
+        return db_cursor.fetchone()[0]
+
+    def _returning_id_str(self):
+        return "RETURNING id"
+
+    def _get_past_hours_query(self):
+        return r"EXTRACT(EPOCH FROM current_timestamp-{date_time}::timestamp)/3600".format(
+            date_time=self.DATE_TIME_FIELD_NAME)
 
 
 if __name__ == '__main__':
