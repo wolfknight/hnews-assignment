@@ -14,6 +14,7 @@ CWD_PATH = os.path.dirname(os.path.realpath(__file__))
 SRC_ROOT_PATH = os.path.normpath(os.path.join(CWD_PATH, os.path.pardir))
 
 TEST_DB_PATH = os.path.join(SRC_ROOT_PATH, "test.db")
+db_obj = db.DataBase(TEST_DB_PATH)
 
 application = Bottle()
 
@@ -32,7 +33,7 @@ def create_post():
     if not post_text:
         response.status = http.HTTPStatus.BAD_REQUEST
         return {"error": "No post text was given under {}".format(POST_DATA_PAYLOAD_KEY)}
-    post_dict = db.DataBase(TEST_DB_PATH).create_post(post_text)
+    post_dict = db_obj.create_post(post_text)
     if post_dict:
         response.status = http.HTTPStatus.CREATED
         return post_dict
@@ -42,7 +43,7 @@ def create_post():
 
 @application.route(POSTS_PATH, method='GET')
 def list_posts():
-    posts_list = db.DataBase(TEST_DB_PATH).list_posts()
+    posts_list = db_obj.list_posts()
     ret_list = posts_list
     if request.query.sort == "top":
         sorted_list = sorted(posts_list, key=lambda k: k[db.DataBase.SCORE_FIELD_NAME], reverse=True)
@@ -59,7 +60,7 @@ def edit_post(post_id):
     if not post_text:
         response.status = http.HTTPStatus.BAD_REQUEST
         return {"error": "No text was provided for {post_data}".format(post_data=POST_DATA_PAYLOAD_KEY)}
-    is_edited = db.DataBase(TEST_DB_PATH).edit_post_data(post_id, post_text)
+    is_edited = db_obj.edit_post_data(post_id, post_text)
     if is_edited:
         return get_post(post_id)
     else:
@@ -75,7 +76,7 @@ def vote_post(post_id, action):
         return {"error": "Only the following actions are allowed {}".format(actions_list)}
     if not request.content_type == 'application/json':
         return {"error": "not JSON"}
-    is_vote_registered = db.DataBase(TEST_DB_PATH).vote_up(post_id) if action == "upvote" else db.DataBase(TEST_DB_PATH).vote_down(post_id)
+    is_vote_registered = db_obj.vote_up(post_id) if action == "upvote" else db_obj.vote_down(post_id)
     if is_vote_registered:
         return get_post(post_id)
     else:
@@ -85,7 +86,7 @@ def vote_post(post_id, action):
 
 @application.route('{posts_path}/<post_id:int>'.format(posts_path=POSTS_PATH), method='GET')
 def get_post(post_id):
-    post_data = db.DataBase(TEST_DB_PATH).get_post(post_id)
+    post_data = db_obj.get_post(post_id)
     if post_data is None:
         response.status = http.HTTPStatus.NOT_FOUND
         return {"error": "ID {} not found".format(post_id)}
