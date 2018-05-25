@@ -1,0 +1,10 @@
+version: '3'
+services:
+  backend:
+    build: ./rest-server
+    volumes:
+     - ../../:/code
+    command: ["python", "src/main.py"]
+  database:
+    build: ./pg
+

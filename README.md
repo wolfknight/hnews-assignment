@@ -1,11 +1,9 @@
-**Overview**
-
-The current version only contains a PoC of step 1 including creating a post and listing posts.
-In addition there are 2 sanity system tests, and the whole thing is running in Docker. 
-
 **Running**
 
-To run the tests simply run the script `./infra/run-tests.sh`
+To run the server simply run `./infra/assignment.sh start`
+This command will start a docker-compose cluster with 2 containers, one for the server and one for the db.
+
+To stop the server simply run `./infra/assignment.sh stop`
 
 **Tech-stack**
 

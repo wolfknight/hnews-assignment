@@ -14,7 +14,7 @@ CWD_PATH = os.path.dirname(os.path.realpath(__file__))
 SRC_ROOT_PATH = os.path.normpath(os.path.join(CWD_PATH, os.path.pardir))
 
 TEST_DB_PATH = os.path.join(SRC_ROOT_PATH, "test.db")
-db_obj = db.DataBase(TEST_DB_PATH)
+db_obj = db.PostgreSqlDataBase("database", "postgres")
 
 application = Bottle()
 
