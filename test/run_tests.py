@@ -51,11 +51,12 @@ class TestClass(object):
     @classmethod
     def create_test_db(cls):
         cls.remove_test_db()
-        create_table(db.DataBase(cls.get_test_db_path()), "posts")
+        create_table(db.SqliteDataBase(cls.get_test_db_path()), "posts")
 
     @classmethod
     def setup_class(cls):
         print("Starting the server")
+        main.db_obj = db.SqliteDataBase(cls.get_test_db_path())
         cls.test_server = main.start_server()
         sleep(2)  # Wait for server to be up. TODO - Change sleep to a condition based wait
 
