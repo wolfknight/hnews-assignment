@@ -1,4 +1,5 @@
 import http
+import json
 from threading import Thread
 
 from bottle import *
@@ -10,7 +11,9 @@ POST_DATA_PAYLOAD_KEY = 'post_data'
 
 POSTS_PATH = '/posts'
 db_obj = db.PostgreSqlDataBase("database", "postgres")
-
+CACHE_PATH = "/tmp/c_nan"
+global changed
+changed = False
 application = Bottle()
 
 
@@ -31,18 +34,43 @@ def create_post():
     post_dict = db_obj.create_post(post_text)
     if post_dict:
         response.status = http.HTTPStatus.CREATED
+        update_changed_status(True)
         return post_dict
     response.status = http.HTTPStatus.INTERNAL_SERVER_ERROR
     return {"error": "Failed to create post for {}".format(post_text)}
 
 
+def update_changed_status(status):
+    global changed
+    changed = status
+
+
+def load_from_cache():
+    with open(CACHE_PATH) as f:
+        print("from cache")
+        posts_list = json.load(f)
+    return posts_list
+
+
+def save_to_cache(posts_list):
+    with open(CACHE_PATH, "w") as f:
+        json.dump(posts_list, f)
+    update_changed_status(False)
+
+
 @application.route(POSTS_PATH, method='GET')
 def list_posts():
-    posts_list = db_obj.list_posts()
-    ret_list = posts_list
-    if request.query.sort == "top":
-        sorted_list = sorted(posts_list, key=lambda k: k[db.DataBase.SCORE_FIELD_NAME], reverse=True)
-        ret_list = sorted_list
+    is_sort_top = request.query.sort == "top"
+    if is_sort_top and os.path.exists(CACHE_PATH) and not changed:
+        ret_list = load_from_cache()
+    else:
+        posts_list = db_obj.list_posts()
+        ret_list = posts_list
+        if is_sort_top:
+            print("calc sort")
+            sorted_list = sorted(posts_list, key=lambda k: k[db.DataBase.SCORE_FIELD_NAME], reverse=True)
+            save_to_cache(ret_list)
+            ret_list = sorted_list
     return {"posts": ret_list}
 
 
@@ -73,6 +101,7 @@ def vote_post(post_id, action):
         return {"error": "not JSON"}
     is_vote_registered = db_obj.vote_up(post_id) if action == "upvote" else db_obj.vote_down(post_id)
     if is_vote_registered:
+        update_changed_status(True)
         return get_post(post_id)
     else:
         response.status = http.HTTPStatus.NOT_FOUND
