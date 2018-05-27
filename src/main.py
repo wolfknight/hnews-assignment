@@ -12,8 +12,8 @@ POST_DATA_PAYLOAD_KEY = 'post_data'
 POSTS_PATH = '/posts'
 db_obj = db.PostgreSqlDataBase("database", "postgres")
 CACHE_PATH = "/tmp/c_nan"
-global changed
 changed = False
+posts_list = None
 application = Bottle()
 
 
@@ -46,15 +46,21 @@ def update_changed_status(status):
 
 
 def load_from_cache():
+    if posts_list is not None:
+        print("from mem")
+        return posts_list
     with open(CACHE_PATH) as f:
         print("from cache")
+        global posts_list
         posts_list = json.load(f)
     return posts_list
 
 
-def save_to_cache(posts_list):
+def save_to_cache(obj):
+    global posts_list
+    posts_list = obj
     with open(CACHE_PATH, "w") as f:
-        json.dump(posts_list, f)
+        json.dump(obj, f)
     update_changed_status(False)
 
 
